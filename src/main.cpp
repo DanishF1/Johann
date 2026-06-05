@@ -1,4 +1,8 @@
-//NANTI TAMBAH HEARTBEAT DI ANDROID STUDIO
+//LIST TUGAS:
+// 1. Menambahkan Fitur Balancing (PID Control)
+// 2. Membuat integrasi dengan sensor IMU (DFRobot_BMI160) untuk membaca data akselerasi dan gyro
+// 3. Integrasi dengan Android Studio
+// 4. (opsional) Autoconnect HP yang sudah pernah terhubung sebelumnya
 #include <Arduino.h>
 #include <DFRobot_BMI160.h>
 #include <Wire.h>
