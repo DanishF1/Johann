@@ -36,7 +36,7 @@
 
 This drone requires a specialized mobile application to act as its remote controller. The Android app handles the high-contrast user interface, BLE client transmission, and flight state logic.
 
-To explore the Android source code and UI/UX design of the controller, please visit the companion repository below:
+To explore the Android source code and UI/UX design of the controller, visit the companion repository below:
 
 👉 **[Johann Universal Controller Repository](https://github.com/DanishF1/Johann-Universal-Controller)**
 
