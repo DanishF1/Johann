@@ -70,14 +70,14 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         }
         pesanMasuk.trim();
         if (pesanMasuk == "HOVER") {
-            Serial.println("🚀 Menyalakan Mesin!");
+            Serial.println("🚀 Hovering");
             hovering = true;
         }else if (pesanMasuk == "ASCEND") {
-            Serial.println("🛬 Mematikan Mesin!");
+            Serial.println("🛬 Ascending");
             ascending = true;
             descending = false;
         }else if (pesanMasuk == "DESCEND") {
-            Serial.println("🔻 Turun!");
+            Serial.println("🔻 Descending");
             descending = true;
             ascending = false;
         }else if (pesanMasuk == "STOP_HOVER") {
