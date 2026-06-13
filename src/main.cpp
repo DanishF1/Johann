@@ -15,6 +15,7 @@ const int EMPTY = 0;
 float valueHOVER = FULL*0.65; 
 float valueDESCEND = FULL*0.425;
 float valueASCEND = FULL*0.875;
+float  PWMValue;
 const int HOVER = (int)valueHOVER;
 int DESCEND = (int)valueDESCEND;
 int ASCEND = (int)valueASCEND;
@@ -22,6 +23,7 @@ bool flying = false;
 bool hovering = false;
 bool descending = false; 
 bool ascending = false;
+bool isSeekbar = false;
 String pesanMasuk;
 unsigned long previousMillis = 0; 
 const long interval = 1000;       
@@ -95,16 +97,11 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         }else{
          Serial.println(pesanMasuk);
          float altitude = pesanMasuk.toFloat();
-            if (altitude == 0.5){
-          hovering = true;
-            }else if (altitude > 0.5){
-          ASCEND = (int)(valueASCEND * altitude);
-          ascending = true;
-          descending = false;
-            }else if (altitude < 0.5){
-          DESCEND = (int)(valueDESCEND * altitude);
-          descending = true;
-          ascending = false;
+            if (altitude >= 0.01){
+            isSeekbar = true;
+            PWMValue = 255 * altitude;
+            }
+          }
       }else{
         Serial.println("Hanya Heartbeat");
       }
@@ -112,9 +109,9 @@ class MyCallbacks: public BLECharacteristicCallbacks {
 
 
         
-  }
-}
-};
+  };
+
+
 
 void setup() {
   Serial.begin(115200);
@@ -208,7 +205,36 @@ void loop() {
 }
 
 void balancing() {
-
+  if (isSeekbar){
+    Serial.println("Seekbar diaktifkan. Nilai PWM: " + String(PWMValue));
+          analogWrite(TRANS_KIRI_ATAS, PWMValue);
+          analogWrite(TRANS_KIRI_BAWAH, PWMValue);
+          analogWrite(TRANS_KANAN_ATAS, PWMValue);
+          analogWrite(TRANS_KANAN_BAWAH, PWMValue);
+          if (PWMValue > 0.4){
+            flying = true;
+          }
+        }else if (hovering){
+          flying = true;
+          Serial.println("Hovering...");
+          analogWrite(TRANS_KIRI_ATAS, hovering);
+          analogWrite(TRANS_KIRI_BAWAH, hovering);
+          analogWrite(TRANS_KANAN_ATAS, hovering);
+          analogWrite(TRANS_KANAN_BAWAH, hovering);
+        }else if (ascending){
+          flying = true;
+          Serial.println("Ascending...");
+          analogWrite(TRANS_KIRI_ATAS, ascending);
+          analogWrite(TRANS_KIRI_BAWAH, ascending);
+          analogWrite(TRANS_KANAN_ATAS, ascending);
+          analogWrite(TRANS_KANAN_BAWAH, ascending);
+        }else if (descending){
+          Serial.println("Descending...");
+          analogWrite(TRANS_KIRI_ATAS, descending);
+          analogWrite(TRANS_KIRI_BAWAH, descending);
+          analogWrite(TRANS_KANAN_ATAS, descending);
+          analogWrite(TRANS_KANAN_BAWAH, descending);
+        }
 }
 
 void reconnect() {
@@ -223,7 +249,7 @@ void reconnect() {
 }
 
 void heartbeat(){
-  if (millis() - hbTimer >= 10000){
+  if (millis() - hbTimer >= 30000){
     Serial.println("🚨 Heartbeat MATI, HP HILANG/TERPUTUS!");
     deviceConnected = false;
     oldDeviceConnected = true;
