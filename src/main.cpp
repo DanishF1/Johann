@@ -1,8 +1,3 @@
-//LIST TUGAS:
-// 1. Menambahkan Fitur Balancing (PID Control)
-// 2. Membuat integrasi dengan sensor IMU (DFRobot_BMI160) untuk membaca data akselerasi dan gyro
-// 3. Integrasi dengan Android Studio
-// 4. (opsional) Autoconnect HP yang sudah pernah terhubung sebelumnya
 #include <Arduino.h>
 #include <DFRobot_BMI160.h>
 #include <Wire.h>
@@ -25,7 +20,7 @@ int DESCEND = (int)valueDESCEND;
 int ASCEND = (int)valueASCEND;
 bool flying = false;
 bool hovering = false;
-bool descending = false;
+bool descending = false; 
 bool ascending = false;
 String pesanMasuk;
 unsigned long previousMillis = 0; 
@@ -110,6 +105,8 @@ class MyCallbacks: public BLECharacteristicCallbacks {
           DESCEND = (int)(valueDESCEND * altitude);
           descending = true;
           ascending = false;
+      }else{
+        Serial.println("Hanya Heartbeat");
       }
     }
 
@@ -166,9 +163,12 @@ void setup() {
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(true); 
   BLEDevice::startAdvertising();
+  Serial.println("📡 Menyalakan Bluetooth. Silakan cari 'Johann 1.0' di HP Anda dan hubungkan.");
 
   Serial.println("Setup Selesai.");
   Serial.println("Bluetooth power maksimal");
+  deviceConnected = false;
+  oldDeviceConnected = false;
 }
 
 void loop() {
