@@ -94,6 +94,9 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             balancing();
             ascending = false;
             descending = false;
+        }else if(pesanMasuk == "STOPBLE"){
+            deviceConnected = false;
+            oldDeviceConnected = false;
         }else{
          Serial.println(pesanMasuk);
          float altitude = pesanMasuk.toFloat();
@@ -170,7 +173,7 @@ void setup() {
 
 void loop() {
   unsigned long currentMillis = millis();
-
+  heartbeat();
   int i = 0;
   int rslt;
   int16_t accelGyro[6]={0};
@@ -198,7 +201,7 @@ void loop() {
   //  (Mode Operasional)
   if (deviceConnected) {
       digitalWrite(LED, HIGH);
-      heartbeat();
+  
   }
   delay(10);
 
@@ -249,8 +252,9 @@ void reconnect() {
 }
 
 void heartbeat(){
-  if (millis() - hbTimer >= 30000){
+  if (millis() - hbTimer >= 3200){
     Serial.println("🚨 Heartbeat MATI, HP HILANG/TERPUTUS!");
+    digitalWrite(LED, HIGH);
     deviceConnected = false;
     oldDeviceConnected = true;
   } 
