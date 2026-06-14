@@ -214,27 +214,35 @@ void loop() {
           if (PWMValue > 0.4){
             flying = true;
           }
-        }else if (hovering){
-          flying = true;
-          Serial.println("Hovering...");
-          analogWrite(TRANS_KIRI_ATAS, hovering);
-          analogWrite(TRANS_KIRI_BAWAH, hovering);
-          analogWrite(TRANS_KANAN_ATAS, hovering);
-          analogWrite(TRANS_KANAN_BAWAH, hovering);
-        }else if (ascending){
-          flying = true;
-          Serial.println("Ascending...");
-          analogWrite(TRANS_KIRI_ATAS, ascending);
-          analogWrite(TRANS_KIRI_BAWAH, ascending);
-          analogWrite(TRANS_KANAN_ATAS, ascending);
-          analogWrite(TRANS_KANAN_BAWAH, ascending);
-        }else if (descending){
-          Serial.println("Descending...");
-          analogWrite(TRANS_KIRI_ATAS, descending);
-          analogWrite(TRANS_KIRI_BAWAH, descending);
-          analogWrite(TRANS_KANAN_ATAS, descending);
-          analogWrite(TRANS_KANAN_BAWAH, descending);
-        }
+        } else if (hovering) {
+           analogWrite(TRANS_KIRI_ATAS, HOVER);
+           analogWrite(TRANS_KIRI_BAWAH, HOVER);
+           analogWrite(TRANS_KANAN_ATAS, HOVER);
+           analogWrite(TRANS_KANAN_BAWAH, HOVER);
+           flying = true;
+
+       } else if (ascending) {
+           analogWrite(TRANS_KIRI_ATAS, ASCEND);
+           analogWrite(TRANS_KIRI_BAWAH, ASCEND);
+           analogWrite(TRANS_KANAN_ATAS, ASCEND);
+           analogWrite(TRANS_KANAN_BAWAH, ASCEND);
+           flying = true;
+
+       } else if (descending) {
+           analogWrite(TRANS_KIRI_ATAS, DESCEND);
+           analogWrite(TRANS_KIRI_BAWAH, DESCEND);
+           analogWrite(TRANS_KANAN_ATAS, DESCEND);
+           analogWrite(TRANS_KANAN_BAWAH, DESCEND);
+           flying = true;
+
+       } else {
+           // JIKA SEMUA MATI (Idle / Stop), MATIKAN MOTOR SEPENUHNYA!
+           analogWrite(TRANS_KIRI_ATAS, EMPTY);
+           analogWrite(TRANS_KIRI_BAWAH, EMPTY);
+           analogWrite(TRANS_KANAN_ATAS, EMPTY);
+           analogWrite(TRANS_KANAN_BAWAH, EMPTY);
+           flying = false;
+       }
   
   }
   delay(10);
