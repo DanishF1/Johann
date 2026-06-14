@@ -129,7 +129,6 @@ void setup() {
   analogWrite(TRANS_KIRI_BAWAH, EMPTY);
   analogWrite(TRANS_KANAN_ATAS, EMPTY);
   analogWrite(TRANS_KANAN_BAWAH, EMPTY);
-  digitalWrite(LED, LOW);
 
   // 1. Memberi Nama (Mulai Memancarkan Eksistensi)
   BLEDevice::init("Johann 1.0"); 
@@ -177,6 +176,12 @@ void loop() {
   int i = 0;
   int rslt;
   int16_t accelGyro[6]={0};
+ 
+  if (deviceConnected){
+    digitalWrite(LED, LOW);
+  }else if(!deviceConnected){
+    digitalWrite(LED, HIGH);
+  }
 
 // SKENARIO 1: HP Tiba-tiba Terputus (Putus Koneksi / Jauh)
   if (!deviceConnected && oldDeviceConnected) {
@@ -190,25 +195,17 @@ void loop() {
       }
       digitalWrite(LED, LOW);
   }
-  
+ 
   // SKENARIO 2: HP Baru Saja Terhubung (Connect)
   if (deviceConnected && !oldDeviceConnected) {
       Serial.println("✅ HP Berhasil Terhubung! Gerbang dikunci untuk perangkat lain.");
-      digitalWrite(LED, HIGH);
+
       oldDeviceConnected = deviceConnected; // TRUE TRUE
   }
   
   //  (Mode Operasional)
   if (deviceConnected) {
-      digitalWrite(LED, HIGH);
-  
-  }
-  delay(10);
-
-}
-
-void balancing() {
-  if (isSeekbar){
+   if (isSeekbar){
     Serial.println("Seekbar diaktifkan. Nilai PWM: " + String(PWMValue));
           analogWrite(TRANS_KIRI_ATAS, PWMValue);
           analogWrite(TRANS_KIRI_BAWAH, PWMValue);
@@ -238,6 +235,14 @@ void balancing() {
           analogWrite(TRANS_KANAN_ATAS, descending);
           analogWrite(TRANS_KANAN_BAWAH, descending);
         }
+  
+  }
+  delay(10);
+
+}
+
+void balancing() {
+  
 }
 
 void reconnect() {
@@ -254,7 +259,7 @@ void reconnect() {
 void heartbeat(){
   if (millis() - hbTimer >= 3200){
     Serial.println("🚨 Heartbeat MATI, HP HILANG/TERPUTUS!");
-    digitalWrite(LED, HIGH);
+
     deviceConnected = false;
     oldDeviceConnected = true;
   } 
