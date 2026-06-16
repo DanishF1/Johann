@@ -103,6 +103,34 @@ class MyCallbacks: public BLECharacteristicCallbacks {
            analogWrite(TRANS_KANAN_ATAS, EMPTY);
            analogWrite(TRANS_KANAN_BAWAH, EMPTY);
            flying = false;
+        }else if(pesanMasuk.startsWith("J:")){
+          String payload = pesanMasuk.substring(2); // Ambil "50,-30"
+    int commaIndex = payload.indexOf(',');
+    if (commaIndex != -1) {
+        int joyX = payload.substring(0, commaIndex).toInt();
+        int joyY = payload.substring(commaIndex + 1).toInt();
+        
+        Serial.println("🕹️ Joystick X: " + String(joyX) + " | Y: " + String(joyY));
+        
+        // Contoh: konversi ke differential PWM untuk yaw/pitch
+        // joyX (-100 ~ 100) → roll kiri/kanan
+        // joyY (-100 ~ 100) → pitch maju/mundur
+        int pwmBase;
+        int trimX = map(joyX, -100, 100, -30, 30); // ±30 PWM trim
+        int trimY = map(joyY, -100, 100, -30, 30);
+        if(hovering || ascending || descending || isSeekbar){
+          if (hovering) pwmBase = HOVER;
+          if (ascending) pwmBase = ASCEND;
+          if (descending) pwmBase = DESCEND;
+          if (isSeekbar) pwmBase = PWMValue;
+        }
+        
+        analogWrite(TRANS_KIRI_ATAS,   constrain(pwmBase - trimX + trimY, 0, 255)); // FL
+        analogWrite(TRANS_KANAN_ATAS,  constrain(pwmBase + trimX + trimY, 0, 255)); // FR
+        analogWrite(TRANS_KIRI_BAWAH,  constrain(pwmBase - trimX - trimY, 0, 255)); // RL
+        analogWrite(TRANS_KANAN_BAWAH, constrain(pwmBase + trimX - trimY, 0, 255)); // RR
+          }
+
         }else{
          Serial.println(pesanMasuk);
          float altitude = pesanMasuk.toFloat();
