@@ -24,6 +24,8 @@ bool hovering = false;
 bool descending = false; 
 bool ascending = false;
 bool isSeekbar = false;
+int joyX = 0;
+int joyY = 0;
 String pesanMasuk;
 unsigned long previousMillis = 0; 
 const long interval = 1000;       
