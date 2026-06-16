@@ -215,7 +215,6 @@ analogWrite(TRANS_KIRI_ATAS, EMPTY);
       flying = false;
     }
 
-    // Joystick aktif → terapkan trim diferensial
     if (joyX != 0 || joyY != 0) {
       int trimX = map(joyX, -100, 100, -30, 30);
       int trimY = map(joyY, -100, 100, -30, 30);
