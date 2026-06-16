@@ -15,7 +15,7 @@ const int EMPTY = 0;
 float valueHOVER = FULL*0.65; 
 float valueDESCEND = FULL*0.425;
 float valueASCEND = FULL*0.875;
-float  PWMValue;
+float PWMValue;
 const int HOVER = (int)valueHOVER;
 int DESCEND = (int)valueDESCEND;
 int ASCEND = (int)valueASCEND;
@@ -24,6 +24,8 @@ bool hovering = false;
 bool descending = false; 
 bool ascending = false;
 bool isSeekbar = false;
+int joyX = 0;
+int joyY = 0;
 String pesanMasuk;
 unsigned long previousMillis = 0; 
 const long interval = 1000;       
@@ -41,17 +43,14 @@ bool oldDeviceConnected = false;
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
-// KELAS CALLBACK: Ini adalah "Satpam" yang menjaga gerbang koneksi
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
       hbTimer = millis();
-
     };
 
     void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
-      // Saat HP menjauh atau terputus, status diubah menjadi false.
     }
 };
 
@@ -61,95 +60,53 @@ class MyCallbacks: public BLECharacteristicCallbacks {
 
       std::string rxValue = pCharacteristic->getValue();
 
-      if (rxValue.length() > 0) {
-        Serial.print("Data masuk dari HP: ");
-        
-        pesanMasuk = "";
-        for (int i = 0; i < rxValue.length(); i++) {
-          pesanMasuk += rxValue[i];
-        }
-        pesanMasuk.trim();
-        if (pesanMasuk == "HOVER") {
-            Serial.println("🚀 Hovering");
-            hovering = true;
-            isSeekbar = false;
-            ascending = false;
-            descending = false;
-        }else if (pesanMasuk == "ASCEND") {
-            Serial.println("🛬 Ascending");
-            ascending = true;
-            isSeekbar = false;
-            descending = false;
-            hovering = false;
-        }else if (pesanMasuk == "DESCEND") {
-            Serial.println("🔻 Descending");
-            descending = true;
-            ascending = false;
-            isSeekbar = false;
-            hovering = false;
-        }else if (pesanMasuk == "BALANCING") {
-            Serial.println("⚖️ Balancing...");
-            balancing();
-            ascending = false;
-            descending = false;
-        }else if (pesanMasuk == "STOP") {
-            Serial.println("⛔ Stopping. Motors OFF.");
-            hovering = false;
-            ascending = false;
-            descending = false;
-            isSeekbar = false;
-            analogWrite(TRANS_KIRI_ATAS, EMPTY);
-           analogWrite(TRANS_KIRI_BAWAH, EMPTY);
-           analogWrite(TRANS_KANAN_ATAS, EMPTY);
-           analogWrite(TRANS_KANAN_BAWAH, EMPTY);
-           flying = false;
-        }else if(pesanMasuk.startsWith("J:")){
-          String payload = pesanMasuk.substring(2); // Ambil "50,-30"
-    int commaIndex = payload.indexOf(',');
-    if (commaIndex != -1) {
-        int joyX = payload.substring(0, commaIndex).toInt();
-        int joyY = payload.substring(commaIndex + 1).toInt();
-        
-        Serial.println("🕹️ Joystick X: " + String(joyX) + " | Y: " + String(joyY));
-        
-        // Contoh: konversi ke differential PWM untuk yaw/pitch
-        // joyX (-100 ~ 100) → roll kiri/kanan
-        // joyY (-100 ~ 100) → pitch maju/mundur
-        int pwmBase;
-        int trimX = map(joyX, -100, 100, -30, 30); // ±30 PWM trim
-        int trimY = map(joyY, -100, 100, -30, 30);
-        if(hovering || ascending || descending || isSeekbar){
-          if (hovering) pwmBase = HOVER;
-          if (ascending) pwmBase = ASCEND;
-          if (descending) pwmBase = DESCEND;
-          if (isSeekbar) pwmBase = PWMValue;
-        }
-        
-        analogWrite(TRANS_KIRI_ATAS,   constrain(pwmBase - trimX + trimY, 0, 255)); // FL
-        analogWrite(TRANS_KANAN_ATAS,  constrain(pwmBase + trimX + trimY, 0, 255)); // FR
-        analogWrite(TRANS_KIRI_BAWAH,  constrain(pwmBase - trimX - trimY, 0, 255)); // RL
-        analogWrite(TRANS_KANAN_BAWAH, constrain(pwmBase + trimX - trimY, 0, 255)); // RR
-          }
-
-        }else{
-         Serial.println(pesanMasuk);
-         float altitude = pesanMasuk.toFloat();
-            if (altitude >= 0.00){
-            isSeekbar = true;
-            hovering = false;
-            ascending = false;
-            descending = false;
-            PWMValue = 255 * altitude;
-            }
-          }
-      }else{
+      if (rxValue.length() == 0) {
         Serial.println("Hanya Heartbeat");
+        return;
+      }
+
+      pesanMasuk = "";
+      for (int i = 0; i < rxValue.length(); i++) {
+        pesanMasuk += rxValue[i];
+      }
+      pesanMasuk.trim();
+
+      // Format dari Kotlin: "state,altitude,joyX,joyY"
+      // Contoh: "HOVER,50,30,-20" atau ",75,0,0" atau "STOP,0,0,0"
+      int c1 = pesanMasuk.indexOf(',');
+      int c2 = pesanMasuk.indexOf(',', c1 + 1);
+      int c3 = pesanMasuk.indexOf(',', c2 + 1);
+
+      if (c1 == -1 || c2 == -1 || c3 == -1) {
+        Serial.println("Format tidak dikenali: " + pesanMasuk);
+        return;
+      }
+
+      String stateStr = pesanMasuk.substring(0, c1);
+      int altitude    = pesanMasuk.substring(c1 + 1, c2).toInt();
+      joyX            = pesanMasuk.substring(c2 + 1, c3).toInt();
+      joyY            = pesanMasuk.substring(c3 + 1).toInt();
+
+      Serial.println("State:" + stateStr + " Alt:" + String(altitude) + " X:" + String(joyX) + " Y:" + String(joyY));
+
+      if (stateStr == "HOVER") {
+        hovering = true; ascending = false; descending = false; isSeekbar = false;
+      } else if (stateStr == "ASCEND") {
+        ascending = true; hovering = false; descending = false; isSeekbar = false;
+      } else if (stateStr == "DESCEND") {
+        descending = true; hovering = false; ascending = false; isSeekbar = false;
+      } else if (stateStr == "STOP") {
+        hovering = false; ascending = false; descending = false; isSeekbar = false;
+        flying = false;
+        joyX = 0;
+        joyY = 0;
+      } else if (stateStr == "") {
+        isSeekbar = true;
+        hovering = false; ascending = false; descending = false;
+        PWMValue = 255 * (altitude / 100.0);
       }
     }
-
-
-        
-  };
+};
 
 
 
@@ -167,22 +124,15 @@ void setup() {
   analogWrite(TRANS_KANAN_ATAS, EMPTY);
   analogWrite(TRANS_KANAN_BAWAH, EMPTY);
 
-  // 1. Memberi Nama (Mulai Memancarkan Eksistensi)
   BLEDevice::init("Johann 1.0"); 
- 
   esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, ESP_PWR_LVL_P9);
-  
   esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_CONN_HDL0, ESP_PWR_LVL_P9);
 
-  // 2. Membuat ESP32 menjadi Server (Slave)
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks()); 
-  
 
-  // 3. Membuat Layanan Utama (Service)
   BLEService *pService = pServer->createService(SERVICE_UUID);
 
-  // 4. Membuat Karakteristik (Ibarat 'Laci' untuk menaruh data)
   BLECharacteristic *pCharacteristic = pService->createCharacteristic(
                                          CHARACTERISTIC_UUID,
                                          BLECharacteristic::PROPERTY_READ |
@@ -191,10 +141,8 @@ void setup() {
   pCharacteristic->setValue("Status: Standby");
   pCharacteristic->setCallbacks(new MyCallbacks());
 
-  // 5. Menyalakan Layanan
   pService->start();
   
-  // 6. Mulai Berteriak (Advertising) agar bisa ditemukan HP
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(true); 
@@ -208,83 +156,82 @@ void setup() {
 }
 
 void loop() {
-  unsigned long currentMillis = millis();
   heartbeat();
-  int i = 0;
-  int rslt;
-  int16_t accelGyro[6]={0};
  
   if (deviceConnected){
     digitalWrite(LED, LOW);
-  }else if(!deviceConnected){
+  } else {
     digitalWrite(LED, HIGH);
   }
 
-// SKENARIO 1: HP Tiba-tiba Terputus (Putus Koneksi / Jauh)
+  // SKENARIO 1: HP Tiba-tiba Terputus
   if (!deviceConnected && oldDeviceConnected) {
     reconnect();
     Serial.println("🔄 Mencoba Reconnect...");
-      if (flying){
-          analogWrite(TRANS_KIRI_ATAS, DESCEND);
-          analogWrite(TRANS_KIRI_BAWAH, DESCEND);
-          analogWrite(TRANS_KANAN_ATAS, DESCEND);
-          analogWrite(TRANS_KANAN_BAWAH, DESCEND);
-      }
-      digitalWrite(LED, LOW);
+    if (flying){
+      analogWrite(TRANS_KIRI_ATAS, DESCEND);
+      analogWrite(TRANS_KIRI_BAWAH, DESCEND);
+      analogWrite(TRANS_KANAN_ATAS, DESCEND);
+      analogWrite(TRANS_KANAN_BAWAH, DESCEND);
+    }else{
+analogWrite(TRANS_KIRI_ATAS, EMPTY);
+    analogWrite(TRANS_KIRI_BAWAH, EMPTY);
+    analogWrite(TRANS_KANAN_ATAS, EMPTY);
+    analogWrite(TRANS_KANAN_BAWAH, EMPTY);
+    }
+    digitalWrite(LED, LOW);
   }
  
-  // SKENARIO 2: HP Baru Saja Terhubung (Connect)
+  // SKENARIO 2: HP Baru Saja Terhubung
   if (deviceConnected && !oldDeviceConnected) {
-      Serial.println("✅ HP Berhasil Terhubung! Gerbang dikunci untuk perangkat lain.");
-          analogWrite(TRANS_KIRI_ATAS, EMPTY);
-          analogWrite(TRANS_KIRI_BAWAH, EMPTY);
-          analogWrite(TRANS_KANAN_ATAS, EMPTY);
-          analogWrite(TRANS_KANAN_BAWAH, EMPTY);
-      oldDeviceConnected = deviceConnected; // TRUE TRUE
+    Serial.println("✅ HP Berhasil Terhubung!");
+    analogWrite(TRANS_KIRI_ATAS, EMPTY);
+    analogWrite(TRANS_KIRI_BAWAH, EMPTY);
+    analogWrite(TRANS_KANAN_ATAS, EMPTY);
+    analogWrite(TRANS_KANAN_BAWAH, EMPTY);
+    joyX = 0;
+    joyY = 0;
+    oldDeviceConnected = deviceConnected;
   }
   
-  //  (Mode Operasional)
+  // Mode Operasional
   if (deviceConnected) {
-   if (isSeekbar){
-    Serial.println("Seekbar diaktifkan. Nilai PWM: " + String(PWMValue));
-          analogWrite(TRANS_KIRI_ATAS, PWMValue);
-          analogWrite(TRANS_KIRI_BAWAH, PWMValue);
-          analogWrite(TRANS_KANAN_ATAS, PWMValue);
-          analogWrite(TRANS_KANAN_BAWAH, PWMValue);
-          if (PWMValue > 0.425){
-            flying = true;
-          }
-        } else if (hovering) {
-           analogWrite(TRANS_KIRI_ATAS, HOVER);
-           analogWrite(TRANS_KIRI_BAWAH, HOVER);
-           analogWrite(TRANS_KANAN_ATAS, HOVER);
-           analogWrite(TRANS_KANAN_BAWAH, HOVER);
-           flying = true;
+    int pwmBase = 0;
 
-       } else if (ascending) {
-           analogWrite(TRANS_KIRI_ATAS, ASCEND);
-           analogWrite(TRANS_KIRI_BAWAH, ASCEND);
-           analogWrite(TRANS_KANAN_ATAS, ASCEND);
-           analogWrite(TRANS_KANAN_BAWAH, ASCEND);
-           flying = true;
+    if (hovering) {
+      pwmBase = HOVER;
+      flying = true;
+    } else if (ascending) {
+      pwmBase = ASCEND;
+      flying = true;
+    } else if (descending) {
+      pwmBase = DESCEND;
+      flying = true;
+    } else if (isSeekbar) {
+      pwmBase = (int)PWMValue;
+      if (PWMValue > 110) flying = true;
+    } else {
+      pwmBase = EMPTY;
+      flying = false;
+    }
 
-       } else if (descending) {
-           analogWrite(TRANS_KIRI_ATAS, DESCEND);
-           analogWrite(TRANS_KIRI_BAWAH, DESCEND);
-           analogWrite(TRANS_KANAN_ATAS, DESCEND);
-           analogWrite(TRANS_KANAN_BAWAH, DESCEND);
-           flying = true;
+    if (joyX != 0 || joyY != 0) {
+      int trimX = map(joyX, -100, 100, -30, 30);
+      int trimY = map(joyY, -100, 100, -30, 30);
+      analogWrite(TRANS_KIRI_ATAS,   constrain(pwmBase - trimX - trimY, 0, 255));
+      analogWrite(TRANS_KIRI_BAWAH,  constrain(pwmBase - trimX + trimY, 0, 255));
 
-       } else{
-           analogWrite(TRANS_KIRI_ATAS, EMPTY);
-           analogWrite(TRANS_KIRI_BAWAH, EMPTY);
-           analogWrite(TRANS_KANAN_ATAS, EMPTY);
-           analogWrite(TRANS_KANAN_BAWAH, EMPTY);
-           flying = false;
-       }
+      analogWrite(TRANS_KANAN_ATAS,  constrain(pwmBase + trimX - trimY, 0, 255));
+      analogWrite(TRANS_KANAN_BAWAH, constrain(pwmBase + trimX + trimY, 0, 255));
+    } else {
+      // Joystick netral → PWM rata semua motor
+      analogWrite(TRANS_KIRI_ATAS,   pwmBase);
+      analogWrite(TRANS_KIRI_BAWAH,  pwmBase);
+      analogWrite(TRANS_KANAN_ATAS,  pwmBase);
+      analogWrite(TRANS_KANAN_BAWAH, pwmBase);
+    }
   }
   delay(10);
-
 }
 
 void balancing() {
@@ -292,20 +239,28 @@ void balancing() {
 }
 
 void reconnect() {
-      Serial.println("❌ HP Terputus! Bersiap melakukan reconnect...");
-      
-      delay(500); 
-      
-      pServer->startAdvertising(); // Paksa ESP32 berteriak/memancarkan sinyal lagi!
-      Serial.println("📡 Memancarkan sinyal lagi. Silakan reconnect dari HP.");
-      
-      oldDeviceConnected = deviceConnected; //FALSE FALSE
+  Serial.println("❌ HP Terputus! Bersiap melakukan reconnect...");
+  delay(500); 
+  if (flying){
+      analogWrite(TRANS_KIRI_ATAS, DESCEND);
+      analogWrite(TRANS_KIRI_BAWAH, DESCEND);
+      analogWrite(TRANS_KANAN_ATAS, DESCEND);
+      analogWrite(TRANS_KANAN_BAWAH, DESCEND);
+    }else{
+analogWrite(TRANS_KIRI_ATAS, EMPTY);
+    analogWrite(TRANS_KIRI_BAWAH, EMPTY);
+    analogWrite(TRANS_KANAN_ATAS, EMPTY);
+    analogWrite(TRANS_KANAN_BAWAH, EMPTY);
+    }
+  pServer->startAdvertising();
+  Serial.println("📡 Memancarkan sinyal lagi. Silakan reconnect dari HP.");
+  oldDeviceConnected = deviceConnected;
 }
 
 void heartbeat(){
+  
   if (millis() - hbTimer >= 3000){
     Serial.println("🚨 Heartbeat MATI, HP HILANG/TERPUTUS!");
-
     deviceConnected = false;
     oldDeviceConnected = true;
   } 
