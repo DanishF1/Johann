@@ -209,7 +209,7 @@ analogWrite(TRANS_KIRI_ATAS, EMPTY);
       flying = true;
     } else if (isSeekbar) {
       pwmBase = (int)PWMValue;
-      if (PWMValue > 110) flying = true;
+      if (PWMValue > 110){flying = true;} else{flying = false;}
     } else {
       pwmBase = EMPTY;
       flying = false;
