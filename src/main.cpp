@@ -72,31 +72,23 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         if (pesanMasuk == "HOVER") {
             Serial.println("🚀 Hovering");
             hovering = true;
+            ascending = false;
+            descending = false;
         }else if (pesanMasuk == "ASCEND") {
             Serial.println("🛬 Ascending");
             ascending = true;
             descending = false;
+            hovering = false;
         }else if (pesanMasuk == "DESCEND") {
             Serial.println("🔻 Descending");
             descending = true;
             ascending = false;
-        }else if (pesanMasuk == "STOP_HOVER") {
-            Serial.println("🛑 Berhenti Hovering!");
             hovering = false;
-        }else if (pesanMasuk == "STOP_ASCEND") {
-            Serial.println("🛑 Berhenti Ascending!");
-            ascending = false;
-        }else if (pesanMasuk == "STOP_DESCEND") {
-            Serial.println("🛑 Berhenti Descending!");
-            descending = false;
         }else if (pesanMasuk == "BALANCING") {
             Serial.println("⚖️ Balancing...");
             balancing();
             ascending = false;
             descending = false;
-        }else if(pesanMasuk == "STOPBLE"){
-            deviceConnected = false;
-            oldDeviceConnected = false;
         }else{
          Serial.println(pesanMasuk);
          float altitude = pesanMasuk.toFloat();
