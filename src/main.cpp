@@ -100,8 +100,7 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         flying = false;
         joyX = 0;
         joyY = 0;
-      } else {
-        // State kosong ("") — gunakan altitude seekbar
+      } else if (stateStr == "") {
         isSeekbar = true;
         hovering = false; ascending = false; descending = false;
         PWMValue = 255 * (altitude / 100.0);
@@ -174,6 +173,11 @@ void loop() {
       analogWrite(TRANS_KIRI_BAWAH, DESCEND);
       analogWrite(TRANS_KANAN_ATAS, DESCEND);
       analogWrite(TRANS_KANAN_BAWAH, DESCEND);
+    }else{
+analogWrite(TRANS_KIRI_ATAS, EMPTY);
+    analogWrite(TRANS_KIRI_BAWAH, EMPTY);
+    analogWrite(TRANS_KANAN_ATAS, EMPTY);
+    analogWrite(TRANS_KANAN_BAWAH, EMPTY);
     }
     digitalWrite(LED, LOW);
   }
@@ -205,7 +209,7 @@ void loop() {
       flying = true;
     } else if (isSeekbar) {
       pwmBase = (int)PWMValue;
-      if (PWMValue > 0.425) flying = true;
+      if (PWMValue > 110) flying = true;
     } else {
       pwmBase = EMPTY;
       flying = false;
@@ -215,10 +219,11 @@ void loop() {
     if (joyX != 0 || joyY != 0) {
       int trimX = map(joyX, -100, 100, -30, 30);
       int trimY = map(joyY, -100, 100, -30, 30);
-      analogWrite(TRANS_KIRI_ATAS,   constrain(pwmBase - trimX + trimY, 0, 255));
-      analogWrite(TRANS_KANAN_ATAS,  constrain(pwmBase + trimX + trimY, 0, 255));
-      analogWrite(TRANS_KIRI_BAWAH,  constrain(pwmBase - trimX - trimY, 0, 255));
-      analogWrite(TRANS_KANAN_BAWAH, constrain(pwmBase + trimX - trimY, 0, 255));
+      analogWrite(TRANS_KIRI_ATAS,   constrain(pwmBase - trimX - trimY, 0, 255));
+      analogWrite(TRANS_KIRI_BAWAH,  constrain(pwmBase - trimX + trimY, 0, 255));
+
+      analogWrite(TRANS_KANAN_ATAS,  constrain(pwmBase + trimX - trimY, 0, 255));
+      analogWrite(TRANS_KANAN_BAWAH, constrain(pwmBase + trimX + trimY, 0, 255));
     } else {
       // Joystick netral → PWM rata semua motor
       analogWrite(TRANS_KIRI_ATAS,   pwmBase);
@@ -237,12 +242,24 @@ void balancing() {
 void reconnect() {
   Serial.println("❌ HP Terputus! Bersiap melakukan reconnect...");
   delay(500); 
+  if (flying){
+      analogWrite(TRANS_KIRI_ATAS, DESCEND);
+      analogWrite(TRANS_KIRI_BAWAH, DESCEND);
+      analogWrite(TRANS_KANAN_ATAS, DESCEND);
+      analogWrite(TRANS_KANAN_BAWAH, DESCEND);
+    }else{
+analogWrite(TRANS_KIRI_ATAS, EMPTY);
+    analogWrite(TRANS_KIRI_BAWAH, EMPTY);
+    analogWrite(TRANS_KANAN_ATAS, EMPTY);
+    analogWrite(TRANS_KANAN_BAWAH, EMPTY);
+    }
   pServer->startAdvertising();
   Serial.println("📡 Memancarkan sinyal lagi. Silakan reconnect dari HP.");
   oldDeviceConnected = deviceConnected;
 }
 
 void heartbeat(){
+  
   if (millis() - hbTimer >= 3000){
     Serial.println("🚨 Heartbeat MATI, HP HILANG/TERPUTUS!");
     deviceConnected = false;
