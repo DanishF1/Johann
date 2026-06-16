@@ -15,7 +15,7 @@ const int EMPTY = 0;
 float valueHOVER = FULL*0.65; 
 float valueDESCEND = FULL*0.425;
 float valueASCEND = FULL*0.875;
-float  PWMValue;
+float PWMValue;
 const int HOVER = (int)valueHOVER;
 int DESCEND = (int)valueDESCEND;
 int ASCEND = (int)valueASCEND;
@@ -41,17 +41,14 @@ bool oldDeviceConnected = false;
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
-// KELAS CALLBACK: Ini adalah "Satpam" yang menjaga gerbang koneksi
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
       hbTimer = millis();
-
     };
 
     void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
-      // Saat HP menjauh atau terputus, status diubah menjadi false.
     }
 };
 
@@ -167,22 +164,15 @@ void setup() {
   analogWrite(TRANS_KANAN_ATAS, EMPTY);
   analogWrite(TRANS_KANAN_BAWAH, EMPTY);
 
-  // 1. Memberi Nama (Mulai Memancarkan Eksistensi)
   BLEDevice::init("Johann 1.0"); 
- 
   esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, ESP_PWR_LVL_P9);
-  
   esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_CONN_HDL0, ESP_PWR_LVL_P9);
 
-  // 2. Membuat ESP32 menjadi Server (Slave)
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks()); 
-  
 
-  // 3. Membuat Layanan Utama (Service)
   BLEService *pService = pServer->createService(SERVICE_UUID);
 
-  // 4. Membuat Karakteristik (Ibarat 'Laci' untuk menaruh data)
   BLECharacteristic *pCharacteristic = pService->createCharacteristic(
                                          CHARACTERISTIC_UUID,
                                          BLECharacteristic::PROPERTY_READ |
@@ -191,10 +181,8 @@ void setup() {
   pCharacteristic->setValue("Status: Standby");
   pCharacteristic->setCallbacks(new MyCallbacks());
 
-  // 5. Menyalakan Layanan
   pService->start();
   
-  // 6. Mulai Berteriak (Advertising) agar bisa ditemukan HP
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(true); 
@@ -292,20 +280,16 @@ void balancing() {
 }
 
 void reconnect() {
-      Serial.println("❌ HP Terputus! Bersiap melakukan reconnect...");
-      
-      delay(500); 
-      
-      pServer->startAdvertising(); // Paksa ESP32 berteriak/memancarkan sinyal lagi!
-      Serial.println("📡 Memancarkan sinyal lagi. Silakan reconnect dari HP.");
-      
-      oldDeviceConnected = deviceConnected; //FALSE FALSE
+  Serial.println("❌ HP Terputus! Bersiap melakukan reconnect...");
+  delay(500); 
+  pServer->startAdvertising();
+  Serial.println("📡 Memancarkan sinyal lagi. Silakan reconnect dari HP.");
+  oldDeviceConnected = deviceConnected;
 }
 
 void heartbeat(){
   if (millis() - hbTimer >= 3000){
     Serial.println("🚨 Heartbeat MATI, HP HILANG/TERPUTUS!");
-
     deviceConnected = false;
     oldDeviceConnected = true;
   } 
