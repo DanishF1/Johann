@@ -72,28 +72,45 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         if (pesanMasuk == "HOVER") {
             Serial.println("🚀 Hovering");
             hovering = true;
+            isSeekbar = false;
             ascending = false;
             descending = false;
         }else if (pesanMasuk == "ASCEND") {
             Serial.println("🛬 Ascending");
             ascending = true;
+            isSeekbar = false;
             descending = false;
             hovering = false;
         }else if (pesanMasuk == "DESCEND") {
             Serial.println("🔻 Descending");
             descending = true;
             ascending = false;
+            isSeekbar = false;
             hovering = false;
         }else if (pesanMasuk == "BALANCING") {
             Serial.println("⚖️ Balancing...");
             balancing();
             ascending = false;
             descending = false;
+        }else if (pesanMasuk == "STOP") {
+            Serial.println("⛔ Stopping. Motors OFF.");
+            hovering = false;
+            ascending = false;
+            descending = false;
+            isSeekbar = false;
+            analogWrite(TRANS_KIRI_ATAS, EMPTY);
+           analogWrite(TRANS_KIRI_BAWAH, EMPTY);
+           analogWrite(TRANS_KANAN_ATAS, EMPTY);
+           analogWrite(TRANS_KANAN_BAWAH, EMPTY);
+           flying = false;
         }else{
          Serial.println(pesanMasuk);
          float altitude = pesanMasuk.toFloat();
-            if (altitude >= 0.01){
+            if (altitude >= 0.00){
             isSeekbar = true;
+            hovering = false;
+            ascending = false;
+            descending = false;
             PWMValue = 255 * altitude;
             }
           }
@@ -191,7 +208,10 @@ void loop() {
   // SKENARIO 2: HP Baru Saja Terhubung (Connect)
   if (deviceConnected && !oldDeviceConnected) {
       Serial.println("✅ HP Berhasil Terhubung! Gerbang dikunci untuk perangkat lain.");
-
+          analogWrite(TRANS_KIRI_ATAS, EMPTY);
+          analogWrite(TRANS_KIRI_BAWAH, EMPTY);
+          analogWrite(TRANS_KANAN_ATAS, EMPTY);
+          analogWrite(TRANS_KANAN_BAWAH, EMPTY);
       oldDeviceConnected = deviceConnected; // TRUE TRUE
   }
   
@@ -203,7 +223,7 @@ void loop() {
           analogWrite(TRANS_KIRI_BAWAH, PWMValue);
           analogWrite(TRANS_KANAN_ATAS, PWMValue);
           analogWrite(TRANS_KANAN_BAWAH, PWMValue);
-          if (PWMValue > 0.4){
+          if (PWMValue > 0.425){
             flying = true;
           }
         } else if (hovering) {
@@ -227,15 +247,13 @@ void loop() {
            analogWrite(TRANS_KANAN_BAWAH, DESCEND);
            flying = true;
 
-       } else {
-           // JIKA SEMUA MATI (Idle / Stop), MATIKAN MOTOR SEPENUHNYA!
+       } else{
            analogWrite(TRANS_KIRI_ATAS, EMPTY);
            analogWrite(TRANS_KIRI_BAWAH, EMPTY);
            analogWrite(TRANS_KANAN_ATAS, EMPTY);
            analogWrite(TRANS_KANAN_BAWAH, EMPTY);
            flying = false;
        }
-  
   }
   delay(10);
 
@@ -257,7 +275,7 @@ void reconnect() {
 }
 
 void heartbeat(){
-  if (millis() - hbTimer >= 3200){
+  if (millis() - hbTimer >= 3000){
     Serial.println("🚨 Heartbeat MATI, HP HILANG/TERPUTUS!");
 
     deviceConnected = false;
