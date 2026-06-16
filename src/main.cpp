@@ -60,95 +60,54 @@ class MyCallbacks: public BLECharacteristicCallbacks {
 
       std::string rxValue = pCharacteristic->getValue();
 
-      if (rxValue.length() > 0) {
-        Serial.print("Data masuk dari HP: ");
-        
-        pesanMasuk = "";
-        for (int i = 0; i < rxValue.length(); i++) {
-          pesanMasuk += rxValue[i];
-        }
-        pesanMasuk.trim();
-        if (pesanMasuk == "HOVER") {
-            Serial.println("🚀 Hovering");
-            hovering = true;
-            isSeekbar = false;
-            ascending = false;
-            descending = false;
-        }else if (pesanMasuk == "ASCEND") {
-            Serial.println("🛬 Ascending");
-            ascending = true;
-            isSeekbar = false;
-            descending = false;
-            hovering = false;
-        }else if (pesanMasuk == "DESCEND") {
-            Serial.println("🔻 Descending");
-            descending = true;
-            ascending = false;
-            isSeekbar = false;
-            hovering = false;
-        }else if (pesanMasuk == "BALANCING") {
-            Serial.println("⚖️ Balancing...");
-            balancing();
-            ascending = false;
-            descending = false;
-        }else if (pesanMasuk == "STOP") {
-            Serial.println("⛔ Stopping. Motors OFF.");
-            hovering = false;
-            ascending = false;
-            descending = false;
-            isSeekbar = false;
-            analogWrite(TRANS_KIRI_ATAS, EMPTY);
-           analogWrite(TRANS_KIRI_BAWAH, EMPTY);
-           analogWrite(TRANS_KANAN_ATAS, EMPTY);
-           analogWrite(TRANS_KANAN_BAWAH, EMPTY);
-           flying = false;
-        }else if(pesanMasuk.startsWith("J:")){
-          String payload = pesanMasuk.substring(2); // Ambil "50,-30"
-    int commaIndex = payload.indexOf(',');
-    if (commaIndex != -1) {
-        int joyX = payload.substring(0, commaIndex).toInt();
-        int joyY = payload.substring(commaIndex + 1).toInt();
-        
-        Serial.println("🕹️ Joystick X: " + String(joyX) + " | Y: " + String(joyY));
-        
-        // Contoh: konversi ke differential PWM untuk yaw/pitch
-        // joyX (-100 ~ 100) → roll kiri/kanan
-        // joyY (-100 ~ 100) → pitch maju/mundur
-        int pwmBase;
-        int trimX = map(joyX, -100, 100, -30, 30); // ±30 PWM trim
-        int trimY = map(joyY, -100, 100, -30, 30);
-        if(hovering || ascending || descending || isSeekbar){
-          if (hovering) pwmBase = HOVER;
-          if (ascending) pwmBase = ASCEND;
-          if (descending) pwmBase = DESCEND;
-          if (isSeekbar) pwmBase = PWMValue;
-        }
-        
-        analogWrite(TRANS_KIRI_ATAS,   constrain(pwmBase - trimX + trimY, 0, 255)); // FL
-        analogWrite(TRANS_KANAN_ATAS,  constrain(pwmBase + trimX + trimY, 0, 255)); // FR
-        analogWrite(TRANS_KIRI_BAWAH,  constrain(pwmBase - trimX - trimY, 0, 255)); // RL
-        analogWrite(TRANS_KANAN_BAWAH, constrain(pwmBase + trimX - trimY, 0, 255)); // RR
-          }
-
-        }else{
-         Serial.println(pesanMasuk);
-         float altitude = pesanMasuk.toFloat();
-            if (altitude >= 0.00){
-            isSeekbar = true;
-            hovering = false;
-            ascending = false;
-            descending = false;
-            PWMValue = 255 * altitude;
-            }
-          }
-      }else{
+      if (rxValue.length() == 0) {
         Serial.println("Hanya Heartbeat");
+        return;
+      }
+
+      pesanMasuk = "";
+      for (int i = 0; i < rxValue.length(); i++) {
+        pesanMasuk += rxValue[i];
+      }
+      pesanMasuk.trim();
+
+      // Format dari Kotlin: "state,altitude,joyX,joyY"
+      // Contoh: "HOVER,50,30,-20" atau ",75,0,0" atau "STOP,0,0,0"
+      int c1 = pesanMasuk.indexOf(',');
+      int c2 = pesanMasuk.indexOf(',', c1 + 1);
+      int c3 = pesanMasuk.indexOf(',', c2 + 1);
+
+      if (c1 == -1 || c2 == -1 || c3 == -1) {
+        Serial.println("Format tidak dikenali: " + pesanMasuk);
+        return;
+      }
+
+      String stateStr = pesanMasuk.substring(0, c1);
+      int altitude    = pesanMasuk.substring(c1 + 1, c2).toInt();
+      joyX            = pesanMasuk.substring(c2 + 1, c3).toInt();
+      joyY            = pesanMasuk.substring(c3 + 1).toInt();
+
+      Serial.println("State:" + stateStr + " Alt:" + String(altitude) + " X:" + String(joyX) + " Y:" + String(joyY));
+
+      if (stateStr == "HOVER") {
+        hovering = true; ascending = false; descending = false; isSeekbar = false;
+      } else if (stateStr == "ASCEND") {
+        ascending = true; hovering = false; descending = false; isSeekbar = false;
+      } else if (stateStr == "DESCEND") {
+        descending = true; hovering = false; ascending = false; isSeekbar = false;
+      } else if (stateStr == "STOP") {
+        hovering = false; ascending = false; descending = false; isSeekbar = false;
+        flying = false;
+        joyX = 0;
+        joyY = 0;
+      } else {
+        // State kosong ("") — gunakan altitude seekbar
+        isSeekbar = true;
+        hovering = false; ascending = false; descending = false;
+        PWMValue = 255 * (altitude / 100.0);
       }
     }
-
-
-        
-  };
+};
 
 
 
