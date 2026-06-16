@@ -157,83 +157,77 @@ void setup() {
 }
 
 void loop() {
-  unsigned long currentMillis = millis();
   heartbeat();
-  int i = 0;
-  int rslt;
-  int16_t accelGyro[6]={0};
  
   if (deviceConnected){
     digitalWrite(LED, LOW);
-  }else if(!deviceConnected){
+  } else {
     digitalWrite(LED, HIGH);
   }
 
-// SKENARIO 1: HP Tiba-tiba Terputus (Putus Koneksi / Jauh)
+  // SKENARIO 1: HP Tiba-tiba Terputus
   if (!deviceConnected && oldDeviceConnected) {
     reconnect();
     Serial.println("🔄 Mencoba Reconnect...");
-      if (flying){
-          analogWrite(TRANS_KIRI_ATAS, DESCEND);
-          analogWrite(TRANS_KIRI_BAWAH, DESCEND);
-          analogWrite(TRANS_KANAN_ATAS, DESCEND);
-          analogWrite(TRANS_KANAN_BAWAH, DESCEND);
-      }
-      digitalWrite(LED, LOW);
+    if (flying){
+      analogWrite(TRANS_KIRI_ATAS, DESCEND);
+      analogWrite(TRANS_KIRI_BAWAH, DESCEND);
+      analogWrite(TRANS_KANAN_ATAS, DESCEND);
+      analogWrite(TRANS_KANAN_BAWAH, DESCEND);
+    }
+    digitalWrite(LED, LOW);
   }
  
-  // SKENARIO 2: HP Baru Saja Terhubung (Connect)
+  // SKENARIO 2: HP Baru Saja Terhubung
   if (deviceConnected && !oldDeviceConnected) {
-      Serial.println("✅ HP Berhasil Terhubung! Gerbang dikunci untuk perangkat lain.");
-          analogWrite(TRANS_KIRI_ATAS, EMPTY);
-          analogWrite(TRANS_KIRI_BAWAH, EMPTY);
-          analogWrite(TRANS_KANAN_ATAS, EMPTY);
-          analogWrite(TRANS_KANAN_BAWAH, EMPTY);
-      oldDeviceConnected = deviceConnected; // TRUE TRUE
+    Serial.println("✅ HP Berhasil Terhubung!");
+    analogWrite(TRANS_KIRI_ATAS, EMPTY);
+    analogWrite(TRANS_KIRI_BAWAH, EMPTY);
+    analogWrite(TRANS_KANAN_ATAS, EMPTY);
+    analogWrite(TRANS_KANAN_BAWAH, EMPTY);
+    joyX = 0;
+    joyY = 0;
+    oldDeviceConnected = deviceConnected;
   }
   
-  //  (Mode Operasional)
+  // Mode Operasional
   if (deviceConnected) {
-   if (isSeekbar){
-    Serial.println("Seekbar diaktifkan. Nilai PWM: " + String(PWMValue));
-          analogWrite(TRANS_KIRI_ATAS, PWMValue);
-          analogWrite(TRANS_KIRI_BAWAH, PWMValue);
-          analogWrite(TRANS_KANAN_ATAS, PWMValue);
-          analogWrite(TRANS_KANAN_BAWAH, PWMValue);
-          if (PWMValue > 0.425){
-            flying = true;
-          }
-        } else if (hovering) {
-           analogWrite(TRANS_KIRI_ATAS, HOVER);
-           analogWrite(TRANS_KIRI_BAWAH, HOVER);
-           analogWrite(TRANS_KANAN_ATAS, HOVER);
-           analogWrite(TRANS_KANAN_BAWAH, HOVER);
-           flying = true;
+    int pwmBase = 0;
 
-       } else if (ascending) {
-           analogWrite(TRANS_KIRI_ATAS, ASCEND);
-           analogWrite(TRANS_KIRI_BAWAH, ASCEND);
-           analogWrite(TRANS_KANAN_ATAS, ASCEND);
-           analogWrite(TRANS_KANAN_BAWAH, ASCEND);
-           flying = true;
+    if (hovering) {
+      pwmBase = HOVER;
+      flying = true;
+    } else if (ascending) {
+      pwmBase = ASCEND;
+      flying = true;
+    } else if (descending) {
+      pwmBase = DESCEND;
+      flying = true;
+    } else if (isSeekbar) {
+      pwmBase = (int)PWMValue;
+      if (PWMValue > 0.425) flying = true;
+    } else {
+      pwmBase = EMPTY;
+      flying = false;
+    }
 
-       } else if (descending) {
-           analogWrite(TRANS_KIRI_ATAS, DESCEND);
-           analogWrite(TRANS_KIRI_BAWAH, DESCEND);
-           analogWrite(TRANS_KANAN_ATAS, DESCEND);
-           analogWrite(TRANS_KANAN_BAWAH, DESCEND);
-           flying = true;
-
-       } else{
-           analogWrite(TRANS_KIRI_ATAS, EMPTY);
-           analogWrite(TRANS_KIRI_BAWAH, EMPTY);
-           analogWrite(TRANS_KANAN_ATAS, EMPTY);
-           analogWrite(TRANS_KANAN_BAWAH, EMPTY);
-           flying = false;
-       }
+    // Joystick aktif → terapkan trim diferensial
+    if (joyX != 0 || joyY != 0) {
+      int trimX = map(joyX, -100, 100, -30, 30);
+      int trimY = map(joyY, -100, 100, -30, 30);
+      analogWrite(TRANS_KIRI_ATAS,   constrain(pwmBase - trimX + trimY, 0, 255));
+      analogWrite(TRANS_KANAN_ATAS,  constrain(pwmBase + trimX + trimY, 0, 255));
+      analogWrite(TRANS_KIRI_BAWAH,  constrain(pwmBase - trimX - trimY, 0, 255));
+      analogWrite(TRANS_KANAN_BAWAH, constrain(pwmBase + trimX - trimY, 0, 255));
+    } else {
+      // Joystick netral → PWM rata semua motor
+      analogWrite(TRANS_KIRI_ATAS,   pwmBase);
+      analogWrite(TRANS_KIRI_BAWAH,  pwmBase);
+      analogWrite(TRANS_KANAN_ATAS,  pwmBase);
+      analogWrite(TRANS_KANAN_BAWAH, pwmBase);
+    }
   }
   delay(10);
-
 }
 
 void balancing() {
